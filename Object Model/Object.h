@@ -27,9 +27,11 @@ public:
 
     bool selected = false;
     bool axis = false;
+    bool shadow = false;
 
     void setSelected(bool selected);
     void setAxis(bool axis);
+    void setShadow(bool shadow);
     virtual void draw();
     virtual void saveObject(std::fstream &file) = 0;
 

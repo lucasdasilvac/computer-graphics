@@ -23,11 +23,15 @@ void TennisCourt::draw()
         glPushMatrix();
             glNormal3f(0,0,0);
 
-            if (this->selected) {
-                glColor3f(0, 0, 1);
+            if(this->shadow) {
+                glColor3f(0, 0, 0);
             } else {
-                // amarelo esverdeado
-                glColor3f(0.68, 1, 0.18);
+                if (this->selected) {
+                    glColor3f(0, 0, 1);
+                } else {
+                    // amarelo esverdeado
+                    glColor3f(0.68, 1, 0.18);
+                }
             }
             glRotated(-90, 1, 0, 0);
             glScaled(0.25, 0.25, 0.25);

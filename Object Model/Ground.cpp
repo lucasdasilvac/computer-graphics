@@ -28,10 +28,14 @@ void Ground::draw()
                 glBegin(GL_QUADS);
                 glNormal3f(0,0,0);
 
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    glColor3f(0, 1, 0);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        glColor3f(0, 1, 0);
+                    }
                 }
 
                 glVertex3f(-5, 0,  5);

@@ -29,11 +29,15 @@ void Stand::draw()
 
             glPushMatrix();
 
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    // cobre
-                    glColor3f(0.72, 0.45, 0.2);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        // cobre
+                        glColor3f(0.72, 0.45, 0.2);
+                    }
                 }
 
                 glTranslatef(-5.0,0.0,0.0);
@@ -66,12 +70,15 @@ void Stand::draw()
 
             // right side
             glPushMatrix();
-
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    // cobre
-                    glColor3f(0.72, 0.45, 0.2);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        // cobre
+                        glColor3f(0.72, 0.45, 0.2);
+                    }
                 }
 
                 glTranslatef(5.0,0.0,0.0);
@@ -104,11 +111,15 @@ void Stand::draw()
 
             // back
             glPushMatrix();
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    // marrom claro
-                    glColor3f(0.65, 0.16, 0.16);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        // marrom claro
+                        glColor3f(0.65, 0.16, 0.16);
+                    }
                 }
                     glBegin(GL_QUADS);
                         glVertex3f(5.0,0.0,-3.0);

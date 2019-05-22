@@ -28,22 +28,30 @@ void Tree::draw()
                 glBegin(GL_POLYGON);
                 glNormal3f(0,0,0);
 
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    glColor3f(1, 0, 0);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        glColor3f(1, 0, 0);
+                    }
                 }
-
                 for (int i =0; i < 360; i++) {
                     glVertex3f(0.2*cos(i), 2.5, 0.2*sin(i));
                     glVertex3f(0.2*cos(i), 0, 0.2*sin(i));
                 }
 
                 glEnd();
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    glColor3f(0, 1, 0);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        glColor3f(0, 1, 0);
+                    }
                 }
 
                 glRotated(-90,1,0,0);

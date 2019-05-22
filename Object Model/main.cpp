@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <vector>
 
+#include "gui.h"
 #include "Object.h"
 #include "Stand.h"
 #include "Car.h"
@@ -11,6 +12,7 @@
 #include "Ball.h"
 #include "Racket.h"
 #include "Ground.h"
+#include "Wall.h"
 
 using namespace std;
 
@@ -36,6 +38,29 @@ int slices = 16;
 int stacks = 16;
 
 float trans_obj = false;
+float trans_light = false;
+
+bool shadow = false;
+
+// proj
+bool drawGround = false;
+bool normProj = false;
+enum {PERSP = 0, ORTHO, OBLIQ};
+int normProjType = PERSP;
+int proj = PERSP;
+
+// volume of visualization
+float s = 0.5; //1.0;
+float x = -s;
+float X =  s;
+float y = -s;
+float Y =  s;
+float near = 1.5;
+float far = 2.5;
+// obliq
+float alfaG = 75; //60; //45; //30 //90
+float phiG = -75; //-60; //-45; //-30 //-90
+
 
 float tx = 0.0;
 float ty = 0.0;
@@ -50,6 +75,8 @@ float delta = 5.0;
 float sx = 1.0;
 float sy = 1.0;
 float sz = 1.0;
+
+GLfloat light_position[] = {1.5f, 1.5f, 1.5f, 1.0f};
 
 // Local Point.
 float pl[4] = { 0.0, 0.0, 0.0, 1.0 };
@@ -179,11 +206,57 @@ void displayInit()
 
     glViewport(0, 0, width, height);
 
+    // enum {PERSP = 0, ORTHO, OBLIQ};
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(30.,ar,0.1,1000.);
 
+    switch (proj) {
+    case PERSP:
+        //perspective projection matrix
+            //gluPerspective(30.,1.,near,far);
+            gluPerspective(30.,ar,0.1,1000.);
+        break;
+    case ORTHO:
+        //orthographic projection matrix
+        glFrustum(-ar, ar, -1.0, 1.0, 2.0, 100.0);
+        break;
+    case OBLIQ:
+                float s = 10;
+                glOrtho(-s, s, -s, s, -s, s);
+                glTranslatef(0.0,0.0,-near);
+                //shear matrix (oblique projection)
+                    float alfa = 45; //30 //90
+                    alfa = alfa*(PI/180);
+                    float phi = 45; //30 //90
+                    phi = phi*(PI/180);
+                    //float d = 1.0; //1.0/2.0;
+                    float transform[16] = {
+                        //1.0,    0.0,    -d*cos(alfa),    0.0,
+                        //0.0,    1.0,    -d*cos(phi),     0.0,
+                        1.0,    0.0,    1.0/tan(alfa),   0.0,
+                        0.0,    1.0,    1.0/tan(phi),    0.0,
+                        0.0,    0.0,    1.0,             0.0,
+                        0.0,    0.0,    0.0,             1.0
+                                         };
+                    glMultTransposeMatrixf( transform );
+                glTranslatef(0.0,0.0,near);
+        break;
+    }
 }
+
+void drawObjectsWithShadow() {
+    // local system
+    glPushMatrix();
+    for (int i = 0; i < objects.size(); i++) {
+        glPushMatrix();
+            objects[i]->setShadow(false);
+            objects[i]->draw();
+        glPopMatrix();
+    }
+    glPopMatrix();
+}
+
 
 void displayEnd()
 {
@@ -200,17 +273,30 @@ void displayInner(bool manual_cam)
 
     // Global System.
     glPushMatrix();
+
+        // light position
+        glutGUI::trans_luz = trans_light;
+        GUI::setLight(0, light_position[0], light_position[1], light_position[2], false, false);
+        glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
         Desenha::drawEixos( 1.0 );
 
-        glColor3d(0.3,0.3,0.3);
+        if (drawGround) {
+            glColor3d(0.6,0.4,0.0);
+            glTranslated(0.0,-0.001,0.0);
+            GUI::drawFloor(15.0,15.0,0.5,0.5);
+        }
 
+        glColor3d(0.0,0.0,0.0);
         Desenha::drawGrid( 10, 0, 10, 1 );
+
     glPopMatrix();
 
     // Local System.
     glPushMatrix();
     for (int i = 0; i < objects.size(); i++) {
         glPushMatrix();
+            objects[i]->setShadow(false);
             objects[i]->draw();
         glPopMatrix();
     }
@@ -224,6 +310,294 @@ void displayInner(bool manual_cam)
 
             draw_cam(0.2);
         glPopMatrix();
+
+    // Shadow.
+    glPushMatrix();
+
+    if(!normProj) {
+        if(shadow) {
+              for(int i = 0; i < objects.size(); i++) {
+                          glPushMatrix();
+                          float k_x = -9.95;
+
+                          float _shadow_x[16] = {
+                                             -k_x,                       0.0,                       0.0,  k_x * light_position[0],
+                               -light_position[1], (light_position[0] - k_x),                       0.0,  k_x * light_position[1],
+                               -light_position[2],                       0.0, (light_position[0] - k_x),  k_x * light_position[2],
+                                             -1.0,                       0.0,                       0.0,        light_position[0]
+                          };
+                          glMultTransposeMatrixf(_shadow_x);
+                          glDisable(GL_LIGHTING);
+
+                          for(int i = 0; i < objects.size(); i++) {
+                              objects[i]->setShadow(true);
+                              objects[i]->draw();
+                              objects[i]->setShadow(true);
+                          }
+
+                          glPopMatrix();
+                      }
+
+                      for(int i = 0; i < objects.size(); i++) {
+                          glPushMatrix();
+                          float k_y = 0.05;
+
+                          float _shadow_y[16] = {
+                              light_position[1] - k_y,   -light_position[0],                      0.0,   k_y * light_position[0],
+                                                  0.0,                 -k_y,                      0.0,   k_y * light_position[1],
+                                                  0.0,   -light_position[2],  light_position[1] - k_y,   k_y * light_position[2],
+                                                  0.0,   -light_position[3],                      0.0,         light_position[1]
+                          };
+                          glMultTransposeMatrixf(_shadow_y);
+                          glDisable(GL_LIGHTING);
+
+                          for(int i = 0; i < objects.size(); i++) {
+                              objects[i]->setShadow(true);
+                              objects[i]->draw();
+                              objects[i]->setShadow(true);
+                          }
+
+                          glPopMatrix();
+                      }
+
+                      for(int i = 0; i < objects.size(); i++) {
+                          glPushMatrix();
+                          float k_z = -9.95;
+                          float _shadow_z[16] = {
+                                 light_position[2] - k_z,                     0.0,   -light_position[0],  k_z * light_position[0],
+                                                     0.0, light_position[2] - k_z,   -light_position[1],  k_z * light_position[1],
+                                                     0.0,                     0.0,                 -k_z,  k_z * light_position[2],
+                                                     0.0,                     0.0,                 -1.0,        light_position[2]
+                          };
+                          glMultTransposeMatrixf(_shadow_z);
+                          glDisable(GL_LIGHTING);
+
+                          for(int i = 0; i < objects.size(); i++) {
+                              objects[i]->setShadow(true);
+                              objects[i]->draw();
+                              objects[i]->setShadow(true);
+                          }
+
+                          glPopMatrix();
+                      }
+        }
+    }
+
+
+    glPopMatrix();
+
+    // normalization of projection
+    if (normProj) {
+        //variables
+            //float s = 0.5; //1.0;
+            //float x = -s;
+            //float X =  s;
+            //float y = -s;
+            //float Y =  s;
+            //float near = 4.5;
+            //float far = 5.5;
+            //shear matrix (oblique projection)
+                //float alfa = 75; //60; //45; //30 //90
+                float alfa = alfaG*(PI/180);
+                //float phi = -75; //-60; //-45; //-30 //-90
+                float phi = phiG*(PI/180);
+                //float d = 1.0; //1.0/2.0;
+                float transform[16] = {
+                    //1.0,    0.0,    -d*cos(alfa),    0.0,
+                    //0.0,    1.0,    -d*cos(phi),     0.0,
+                    1.0,    0.0,    1.0/tan(alfa),   0.0,
+                    0.0,    1.0,    1.0/tan(phi),    0.0,
+                    0.0,    0.0,    1.0,             0.0,
+                    0.0,    0.0,    0.0,             1.0
+                                     };
+            glPushMatrix();
+                //camera
+                glColor3d(0.3,0.3,0.3);
+                draw_cam(0.1);
+                //cubo 2x2x2
+                glColor3d(1.0,0.0,0.0);
+                Desenha::drawSelectedBox(-1,1,-1,1,-1,1);
+                //imagem
+                glBegin(GL_LINE_STRIP);
+                    glVertex3f(-1,-1,1);
+                    glVertex3f( 1,-1,1);
+                    glVertex3f( 1, 1,1);
+                    glVertex3f(-1, 1,1);
+                    glVertex3f(-1,-1,1);
+                glEnd();
+                //volume of visualization
+                glColor3d(1.0,0.5,0.0);
+                    float xfp = x*far/near;
+                    float Xfp = X*far/near;
+                    float yfp = y*far/near;
+                    float Yfp = Y*far/near;
+                    float xfo = x + (1.0/tan(alfa))*(far-near);
+                    float Xfo = X + (1.0/tan(alfa))*(far-near);
+                    float yfo = y + (1.0/tan(phi))*(far-near);
+                    float Yfo = Y + (1.0/tan(phi))*(far-near);
+                    float x0o = x - (1.0/tan(alfa))*(near);
+                    float X0o = X - (1.0/tan(alfa))*(near);
+                    float y0o = y - (1.0/tan(phi))*(near);
+                    float Y0o = Y - (1.0/tan(phi))*(near);
+                switch (normProjType) {
+                case PERSP:
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(x,y,-near);
+                        glVertex3f(X,y,-near);
+                        glVertex3f(X,Y,-near);
+                        glVertex3f(x,Y,-near);
+                        glVertex3f(x,y,-near);
+                    glEnd();
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(xfp,yfp,-far);
+                        glVertex3f(Xfp,yfp,-far);
+                        glVertex3f(Xfp,Yfp,-far);
+                        glVertex3f(xfp,Yfp,-far);
+                        glVertex3f(xfp,yfp,-far);
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(x ,y ,-near);
+                        glVertex3f(xfp,yfp,-far );
+                        glVertex3f(X ,y ,-near);
+                        glVertex3f(Xfp,yfp,-far );
+                        glVertex3f(X ,Y ,-near);
+                        glVertex3f(Xfp,Yfp,-far );
+                        glVertex3f(x ,Y ,-near);
+                        glVertex3f(xfp,Yfp,-far );
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(0  ,0  , 0   );
+                        glVertex3f(xfp,yfp,-far );
+                        glVertex3f(0  ,0  , 0   );
+                        glVertex3f(Xfp,yfp,-far );
+                        glVertex3f(0  ,0  , 0   );
+                        glVertex3f(Xfp,Yfp,-far );
+                        glVertex3f(0  ,0  , 0   );
+                        glVertex3f(xfp,Yfp,-far );
+                    glEnd();
+                    break;
+                case ORTHO:
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(x,y,-near);
+                        glVertex3f(X,y,-near);
+                        glVertex3f(X,Y,-near);
+                        glVertex3f(x,Y,-near);
+                        glVertex3f(x,y,-near);
+                    glEnd();
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(x,y,-far);
+                        glVertex3f(X,y,-far);
+                        glVertex3f(X,Y,-far);
+                        glVertex3f(x,Y,-far);
+                        glVertex3f(x,y,-far);
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(x ,y ,-near);
+                        glVertex3f(x ,y ,-far);
+                        glVertex3f(X ,y ,-near);
+                        glVertex3f(X ,y ,-far);
+                        glVertex3f(X ,Y ,-near);
+                        glVertex3f(X ,Y ,-far);
+                        glVertex3f(x ,Y ,-near);
+                        glVertex3f(x ,Y ,-far);
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(x ,y , 0);
+                        glVertex3f(x ,y ,-far);
+                        glVertex3f(X ,y , 0);
+                        glVertex3f(X ,y ,-far);
+                        glVertex3f(X ,Y , 0);
+                        glVertex3f(X ,Y ,-far);
+                        glVertex3f(x ,Y , 0);
+                        glVertex3f(x ,Y ,-far);
+                    glEnd();
+                    break;
+                case OBLIQ:
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(x,y,-near);
+                        glVertex3f(X,y,-near);
+                        glVertex3f(X,Y,-near);
+                        glVertex3f(x,Y,-near);
+                        glVertex3f(x,y,-near);
+                    glEnd();
+                    glBegin(GL_LINE_STRIP);
+                        glVertex3f(xfo,yfo,-far);
+                        glVertex3f(Xfo,yfo,-far);
+                        glVertex3f(Xfo,Yfo,-far);
+                        glVertex3f(xfo,Yfo,-far);
+                        glVertex3f(xfo,yfo,-far);
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(x ,y ,-near);
+                        glVertex3f(xfo,yfo,-far );
+                        glVertex3f(X ,y ,-near);
+                        glVertex3f(Xfo,yfo,-far );
+                        glVertex3f(X ,Y ,-near);
+                        glVertex3f(Xfo,Yfo,-far );
+                        glVertex3f(x ,Y ,-near);
+                        glVertex3f(xfo,Yfo,-far );
+                    glEnd();
+                    glBegin(GL_LINES);
+                        glVertex3f(x0o,y0o, 0   );
+                        glVertex3f(xfo,yfo,-far );
+                        glVertex3f(X0o,y0o, 0   );
+                        glVertex3f(Xfo,yfo,-far );
+                        glVertex3f(X0o,Y0o, 0   );
+                        glVertex3f(Xfo,Yfo,-far );
+                        glVertex3f(x0o,Y0o, 0   );
+                        glVertex3f(xfo,Yfo,-far );
+                    glEnd();
+                    break;
+                default:
+                    break;
+                }
+            glPopMatrix();
+        //original object
+            //glPushMatrix();
+                //glColor3d(0.3,0.3,0.3);
+                //glColor3d(0.0,0.5,0.0);
+                //glTranslatef(-0.5,-0.5,-0.5-0.5*(far+near));
+                //drawObjectsWithShadow();
+            //glPopMatrix();
+        //object distorted by normalization of projection
+            glPushMatrix();
+                glColor4d(0.0,0.5,0.0,0.4);
+                //glTranslatef(2.,0,0);
+                //matrix to multiply x by -1
+                    float zNeg[16] = {
+                                        1.0, 0.0, 0.0, 0.0,
+                                        0.0, 1.0, 0.0, 0.0,
+                                        0.0, 0.0,-1.0, 0.0,
+                                        0.0, 0.0, 0.0, 1.0
+                                     };
+                    glMultTransposeMatrixf( zNeg );
+                //choose projection type
+                switch (normProjType) {
+                case PERSP:
+                    //perspective projection matrix
+                        //gluPerspective(30.,1.,near,far);
+                        glFrustum(x,X, y,Y, near,far);
+                    break;
+                case ORTHO:
+                    //orthographic projection matrix
+                        glOrtho(x,X, y,Y, near,far);
+                    break;
+                case OBLIQ:
+                    //projection oblique matrix
+                        glOrtho(x,X, y,Y, near,far);
+                        glTranslatef(0.0,0.0,-near);
+                        //shear matrix (oblique projection)
+                            glMultTransposeMatrixf( transform );
+                        glTranslatef(0.0,0.0,near);
+                    break;
+                default:
+                    break;
+                }
+                //draw object
+                glTranslatef(-0.5,-0.5,-0.5-0.5*(far+near));
+                drawObjectsWithShadow();
+            glPopMatrix();
+    }
 
 }
 
@@ -295,7 +669,7 @@ void mouseMove(int x, int y) {
     }
     factor = 100.0;
     if (!lbpressed && rbpressed && !mbpressed) {
-        if (!trans_obj) {
+        if (!trans_obj && !trans_light) {
             if (!manual_cam) {
                 if (!change_manual_cam) {
                     cam1->translatex(x,last_x);
@@ -314,12 +688,18 @@ void mouseMove(int x, int y) {
                 }
             }
         } else {
-            objects[idxSelected]->tx += (x - last_x)/factor;
-            objects[idxSelected]->ty += -(y - last_y)/factor;
+            if (trans_obj) {
+                objects[idxSelected]->tx += (x - last_x)/factor;
+                objects[idxSelected]->ty += -(y - last_y)/factor;
+            }
+            if (trans_light) {
+                light_position[0] += (x - last_x)/factor;
+                light_position[1] += -(y - last_y)/factor;
+            }
         }
     }
     if (lbpressed && rbpressed && !mbpressed) {
-        if (!trans_obj) {
+        if (!trans_obj && !trans_light) {
             if (!manual_cam) {
                 if (!change_manual_cam) {
                     cam1->zoom(y,last_y);
@@ -334,9 +714,14 @@ void mouseMove(int x, int y) {
                 }
             }
         } else {
-            objects[idxSelected]->tz += (y - last_y)/factor;
-            factor = 10.0;
-            objects[idxSelected]->az += -(x - last_x)/factor;
+            if (trans_obj) {
+                objects[idxSelected]->tz += (y - last_y)/factor;
+                factor = 10.0;
+                objects[idxSelected]->az += -(x - last_x)/factor;
+            }
+            if (trans_light) {
+                light_position[2] += (y - last_y)/factor;
+            }
         }
     }
     factor = 100.0;
@@ -410,6 +795,8 @@ void loadObjects() {
             objects.push_back(new Racket());
         } else if (object == "7") {
             objects.push_back(new Ground());
+        } else if (object == "8") {
+            objects.push_back(new Wall());
         }
 
         // T
@@ -457,6 +844,21 @@ void keyboard(unsigned char key, int x, int y)
         case 'l':
             objects.clear();
             loadObjects();
+            break;
+
+        case 'G':
+            drawGround = !drawGround;
+            break;
+
+        case 'n':
+            normProj = !normProj;
+            break;
+        case 'N':
+            normProjType = (normProjType+1)%3;
+            break;
+
+        case 'P':
+            proj = (proj+1)%3;
             break;
 
         case 'a':
@@ -566,6 +968,28 @@ void keyboard(unsigned char key, int x, int y)
             break;
         }
 
+        case '8': {
+            Wall * wall = new Wall();
+            objects.push_back(wall);
+            wall = nullptr;
+            break;
+        }
+
+        case 'w': {
+            shadow = !shadow;
+            break;
+        }
+
+        case 'g': {
+            trans_light = !trans_light;
+            break;
+        }
+
+        case 'p':{
+           light_position[3] = 1 - light_position[3];
+           break;
+        }
+
         case '+':
             slices++;
             stacks++;
@@ -632,10 +1056,13 @@ void keyboard(unsigned char key, int x, int y)
                 delete cam1;
                 if (idxCam1%5==0) cam1 = new CameraDistante();
                 // up
+                // perspective 0, 1, 10, 0, 1, 0, 0, 1, 0,
                 if (idxCam1%5==1) cam1 = new CameraDistante(0.0671324,10.9985,0.161224, 0,1,0, -0.384342,0.0174642,-0.923026);
                 // farther
+                // ortho 0, 1, 16.45, 0, 1, 0, 0, 1, 0
                 if (idxCam1%5==2) cam1 = new CameraDistante(-0.279056, 27.9024, 43.9763, -0.138833, -1.31933, 0, 0.00176469, 0.832888, -0.553439);
                 // back diagonal
+                // obliq -4.76233, 12.1813, -4.30784, -1.82105, 0.431801, 4.9581, 0.233106, 0.637482, 0.734356
                 if (idxCam1%5==3) cam1 = new CameraDistante(-27.7386, 14.4946, -27.16, -0.348222, 1.14659, 0.0488028, 0.231819, 0.945108, 0.230282);
 
                 if (idxCam1%5==4) cam1 = new CameraDistante(savedCamera[0],savedCamera[1],savedCamera[2],savedCamera[3],savedCamera[4],savedCamera[5],savedCamera[6],savedCamera[7],savedCamera[8]);

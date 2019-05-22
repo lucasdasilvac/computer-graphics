@@ -23,10 +23,14 @@ void Racket::draw()
         glPushMatrix();
             glNormal3f(0,0,0);
 
-            if (this->selected) {
-                glColor3f(0, 0, 1);
+            if(this->shadow) {
+                glColor3f(0, 0, 0);
             } else {
-                glColor3f(1, 0.27, 0);
+                if (this->selected) {
+                    glColor3f(0, 0, 1);
+                } else {
+                    glColor3f(1, 0.27, 0);
+                }
             }
             glRotated(-90, 1, 0, 0);
             glScaled(0.025, 0.025, 0.025);

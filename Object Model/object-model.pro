@@ -21,6 +21,10 @@ HEADERS += \
     Stand.h \
     TennisCourt.h \
     Tree.h \
+    Wall.h \
+    gui_glut/OpenTextures.h \
+    gui_glut/extra.h \
+    gui_glut/gui.h \
     lib/Camera.h \
     lib/CameraDistante.h \
     lib/CameraJogo.h \
@@ -38,6 +42,10 @@ SOURCES += \
     Stand.cpp \
     TennisCourt.cpp \
     Tree.cpp \
+    Wall.cpp \
+    gui_glut/OpenTextures.cpp \
+    gui_glut/extra.cpp \
+    gui_glut/gui.cpp \
     lib/Camera.cpp \
     lib/CameraDistante.cpp \
     lib/CameraJogo.cpp \

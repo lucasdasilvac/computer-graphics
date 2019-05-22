@@ -27,10 +27,14 @@ void Ball::draw()
 
                 glNormal3f(0,0,0);
 
-                if (this->selected) {
-                    glColor3f(0, 0, 1);
+                if(this->shadow) {
+                    glColor3f(0, 0, 0);
                 } else {
-                    glColor3f(0.49, 0.99, 0);
+                    if (this->selected) {
+                        glColor3f(0, 0, 1);
+                    } else {
+                        glColor3f(0.49, 0.99, 0);
+                    }
                 }
 
                 glScaled(0.05, 0.05, 0.05);
